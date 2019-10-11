@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.w3.org/1999/xhtml">
+<head  th:replace="_fragments :: head(~{::title})">
+    <title>Json格式化</title>
+</head>
+<script src="/js/all.js"></script>
+<script src="/js/code.js"></script>
+<script src="/js/ObjTree.js"></script>
+<script src ="/js/xml2json.js"></script>
+<script src="/js/jkl-dumper.js"></script>
+<link href="/css/all.css" rel="stylesheet">
+<link href="/css/style.css" rel="stylesheet">
+<script src="https://cdn.bootcss.com/clipboard.js/2.0.4/clipboard.js"></script>
+<script src="https://cdn.jsdelivr.net/semantic-ui/2.2.4/semantic.min.js"></script>
+<body>
+
+<!--导航-->
+<nav th:replace="_fragments :: menu(7)" class="ui inverted attached segment m-padded-tb-mini m-shadow-small" >
+</nav>
+
+<!--中间内容-->
+<div  class="m-container m-padded-tb-big animated fadeIn">
+
+        <textarea class="form-control" id="code" name="code" rows="32" style="width:100%"></textarea>
+    <div class="ui basic buttons">
+        <div class="ui button" id="format">格式化</div>
+        <div class="ui button" onclick="compress(1)">压缩</div>
+        <div class="ui button" onclick="compress(2)">转义</div>
+        <div class="ui button" onclick="compress(3)">压缩并转义</div>
+        <div class="ui button" onclick="compress(4)">去除转义</div>
+        <div class="ui button" onclick="u2h()">unicode转中文</div>
+        <div class="ui button"onclick="h2u()">中文转unicode</div>
+        <div class="ui button" id="toxml">Json转成XML</div>
+        <div class="ui button" id="tojson">XML转成Json</div>
+        <input click-type="copy" id="copy" onclick="copy()"  class="ui button" type="button" value="复制">
+        <div class="ui button" id="clear">清空</div>
+    </div>
+</div>
+
+<script type="text/javascript">
+    new ClipboardJS('#copy');
+    var editor9461 = CodeMirror.fromTextArea(document.getElementById("code"), {
+        lineNumbers: true,
+        styleActiveLine: true,
+        matchBrackets: true,
+        mode:"text/html",
+        theme:"eclipse",
+        selectionPointer: true,
+        lineWrapping: true,
+        extraKeys: {
+            "Alt-/": "autocomplete",
+            "Ctrl-F": "findPersistent",
+            "Ctrl-F8": function(cm) {
+                cm.setOption("fullScreen", !cm.getOption("fullScreen"));
+            },
+            "Esc": function(cm) {
+                if (cm.getOption("fullScreen")) cm.setOption("fullScreen", false);
+            }
+        }
+    });
+    //{"cgsl_text": 289,"dw": "1"}
+    function jsonFomat(text) {
+        if(!isJSON(text)){
+            return ;
+        }
+        /*  var text = document.getElementById(id).innerHTML.split("\n").join(" ");*/
+        var t = [];
+        var tab = 0;
+        var inString = false;
+        for (var i = 0, len = text.length; i < len; i++) {
+            var c = text.charAt(i);
+            if (inString && c === inString) {
+                // TODO: \\"
+                if (text.charAt(i - 1) !== '\\') {
+                    inString = false;
+                }
+            } else if (!inString && (c === '"' || c === "'")) {
+                inString = c;
+            } else if (!inString && (c === ' ' || c === "\t"|| c === "\n")) {
+                c = '';
+            } else if (!inString && c === ':') {
+                c += ' ';
+            } else if (!inString && c === ',') {
+                c += "\n" + space(tab * 2);
+            } else if (!inString && (c === '[' || c === '{')) {
+                tab++;
+                c += "\n" + space(tab * 2);
+            } else if (!inString && (c === ']' || c === '}')) {
+                tab--;
+                c = "\n" + space(tab * 2) + c;
+            }
+            t.push(c);
+        }
+        return t.join('');
+    };
+    function space(len) {
+        var t = [], i;
+        for (i = 0; i < len; i++) {
+            t.push(' ');
+        }
+        return t.join('');
+    };
+    $("#format").click(function () {
+        editor9461.setValue(jsonFomat(editor9461.getValue()));
+    })
+    $("#clear").click(function () {
+        editor9461.setValue("");
+    })
+    function isJSON(str) {
+        if (typeof str == 'string') {
+            try {
+                var obj=JSON.parse(str);
+                if(typeof obj == 'object' && obj ){
+                    return true;
+                }else{
+                    return false;
+                }
+            } catch(e) {
+                alert('不是json格式');
+                console.log('error：'+str+'!!!'+e);
+                return false;
+            }
+        }
+    }
+    function compress(id){
+        var text =editor9461.getValue();
+        if(!yasuo(text)){
+            return ;
+        }
+        editor9461.setValue(yasuo(text,id));
+    }
+    function yasuo(text,id){
+        if(id==1||id==3){
+            text = text.split("\n").join(" ");
+            var t = [];
+            var inString = false;
+            for (var i = 0, len = text.length; i < len; i++) {
+                var c = text.charAt(i);
+                if (inString && c === inString) {
+                    // TODO: \\"
+                    if (text.charAt(i - 1) !== '\\') {
+                        inString = false;
+                    }
+                } else if (!inString && (c === '"' || c === "'")) {
+                    inString = c;
+                } else if (!inString && (c === ' ' || c === "\t")) {
+                    c = '';
+                }
+                t.push(c);
+            }
+            text= t.join('');
+        }
+        if(id==2||id==3){
+            text = text.replace(/\\/g,"\\\\").replace(/\"/g,"\\\"");
+        }
+        if(id==4){
+            text = text.replace(/\\\\/g,"\\").replace(/\\\"/g,'\"');
+        }
+        return text;
+    }
+    String.prototype.trim=function()
+    {
+        return this.replace(/(^\s*)|(\s*$)/g, '');
+    }
+    var GB2312UnicodeConverter={
+        ToUnicode:function(str){
+            var txt= escape(str).replace(/%u/gi,'\\u');
+            //var txt= escape(str).replace(/([%3F]+)/gi,'\\u');
+            return txt.replace(/%7b/gi,'{').replace(/%7d/gi,'}').replace(/%3a/gi,':').replace(/%2c/gi,',').replace(/%27/gi,'\'').replace(/%22/gi,'"').replace(/%5b/gi,'[').replace(/%5d/gi,']').replace(/%3D/gi,'=').replace(/%20/gi,' ').replace(/%3E/gi,'>').replace(/%3C/gi,'<').replace(/%3F/gi,'?');//
+        }
+        ,ToGB2312:function(str){
+            return unescape(str.replace(/\\u/gi,'%u'));
+        }
+    };
+    function u2h(){
+        var text = editor9461.getValue();
+        text = text.trim();
+        // text = text.replace(/\u/g,"");
+        editor9461.setValue(GB2312UnicodeConverter.ToGB2312(text));
+    }
+    function h2u(){
+        var text =  editor9461.getValue();
+        text = text.trim();
+        // text = text.replace(/\u/g,"");
+        editor9461.setValue(GB2312UnicodeConverter.ToUnicode(text));
+    }
+    function copy() {
+        $("#copy").attr('data-clipboard-text',editor9461.getValue());
+        alert("复制成功");
+    }
+    function repalceFh(c){
+        return c.replace(/&gt;/g,">").replace(/&lt;/g,"<").replace(/&quot;/g,"\"");
+    }
+    $(function(){
+        $("#tojson").on("click", function(e) {
+            //创建一个x2js对象进行转换
+            var x2js = new X2JS();
+            try {
+                var jsonObj = x2js.xml_str2json( editor9461.getValue() );
+                var st = JSON.stringify(jsonObj);
+                editor9461.setValue(st);
+            }catch (e) {
+                alert("请输入正确的xml格式");
+                return false;
+            }
+        });
+
+        $("#toxml").on("click", function(e) {
+            if (!isJSON(editor9461.getValue())){
+                return ;
+            }
+            var xotree = new XML.ObjTree();
+            var json = eval("(" + editor9461.getValue() + ")");
+            editor9461.setValue(formatXml(xotree.writeXML(json)));
+        });
+    })
+</script>
+</body>
+</html>
